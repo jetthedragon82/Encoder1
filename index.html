@@ -745,7 +745,7 @@ let isPlaying = false;
         }
 
         if (isPlaying && lastProcessedAudioBlob) {
-            const elapsedSec = (Date.now() - playbackStartTime) / 1000.0;
+            const elapsedSec = audioContext.currentTime - playbackStartTime;
             return getPcmRms(elapsedSec, 200);
         }
 
