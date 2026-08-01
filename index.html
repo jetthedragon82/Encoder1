@@ -388,7 +388,7 @@ let isPlaying = false;
         initAudioContext();
         const fileInput = document.createElement('input');
         fileInput.type = 'file';
-        fileInput.accept = '.wav,audio/wav';
+        fileInput.accept = '.wav,.AMMEF,audio/wav,application/x-ammef';
         fileInput.onchange = async (e) => {
             const file = e.target.files[0];
             if (!file) return;
