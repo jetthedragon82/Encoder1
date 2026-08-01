@@ -154,9 +154,9 @@
                 <span id="txtStatus" style="color: #888888; font-size: 11px;">STATUS: STANDBY. Press PTT, IDENT or Load Image/WAV...</span>
             </div>
             <div></div>
-            <button id="btnLoad" style="height: 100%; background: #003366; color: white; font-weight: bold; font-size: 10px; opacity: 0.5; cursor: not-allowed;" disabled>📁 DECODE WAV</button>
+            <button id="btnLoad" style="height: 100%; background: #003366; color: white; font-weight: bold; font-size: 10px; opacity: 0.5; cursor: not-allowed;" disabled>📁 ENCODE WAV</button>
             <div></div>
-            <button id="btnSave" style="height: 100%; background: #114422; color: white; font-weight: bold; font-size: 10px; opacity: 0.5; cursor: not-allowed;" disabled>💾 SAVE WAV</button>
+            <button id="btnSave" style="height: 100%; background: #114422; color: white; font-weight: bold; font-size: 10px; opacity: 0.5; cursor: not-allowed;" disabled>💾 SAVE .AMMEF</button>
         </div>
     `;
     document.body.appendChild(container);
@@ -689,6 +689,8 @@ playAudioBlob(lastProcessedAudioBlob);
                     }
 
                     lastProcessedAudioBlob = createWavBuffer(pcmSamples, sampleRate);
+
+function createAMMEF(...)
                     playAudioBlob(lastProcessedAudioBlob);
 
                     btnSave.disabled = false;
@@ -709,11 +711,11 @@ playAudioBlob(lastProcessedAudioBlob);
             const url = URL.createObjectURL(lastProcessedAudioBlob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'ArNet_ABMTV_Stream.wav';
+            a.download = 'ArNet_ABMTV_Stream.ammef';
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
-            txtStatus.textContent = "STATUS: Saved file to 'ArNet_ABMTV_Stream.wav'";
+            txtStatus.textContent = "STATUS: Saved file to 'ArNet_ABMTV_Stream.ammef'";
             txtStatus.style.color = '#90EE90';
         }
     });
