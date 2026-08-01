@@ -156,7 +156,7 @@
             <div></div>
             <button id="btnLoad" style="height: 100%; background: #003366; color: white; font-weight: bold; font-size: 10px; opacity: 0.5; cursor: not-allowed;" disabled>📁 DECODE WAV</button>
             <div></div>
-            <button id="btnSave" style="height: 100%; background: #114422; color: white; font-weight: bold; font-size: 10px; opacity: 0.5; cursor: not-allowed;" disabled>💾 SAVE WAV</button>
+            <button id="btnSave" style="height: 100%; background: #114422; color: white; font-weight: bold; font-size: 10px; opacity: 0.5; cursor: not-allowed;" disabled>💾 SAVE .AMMEF</button>
         </div>
     `;
     document.body.appendChild(container);
@@ -167,8 +167,13 @@
     let mediaRecorder = null;
     let recordedChunks = [];
     let lastProcessedAudioBlob = null;
-    let lastAudioPcmArray = null; 
-    let isPlaying = false;
+let lastAudioPcmArray = null;
+
+// AMMEF container storage
+let lastAMMEFData = null;
+let ammefVersion = "1.0";
+
+let isPlaying = false;
     let playbackStartTime = 0;
     let currentAmplitude = 0.02;
     let minFreq = 4550;
@@ -669,19 +674,68 @@
         fileInput.click();
     });
 
-    btnSave.addEventListener('click', () => {
-        if (lastProcessedAudioBlob) {
-            const url = URL.createObjectURL(lastProcessedAudioBlob);
+   btnSave.addEventListener('click', () => {
+    if (lastProcessedAudioBlob) {
+
+        const reader = new FileReader();
+
+        reader.onload = () => {
+            const wavBytes = new Uint8Array(reader.result);
+
+            const metadata = {
+                format: "AMMEF",
+                version: ammefVersion,
+                mode: comboMode.value,
+                bandwidth: comboBandwidth.value,
+                frequency: txtFrequency.value,
+                created: new Date().toISOString()
+            };
+
+            const metadataBytes = new TextEncoder().encode(JSON.stringify(metadata));
+
+            const combined = new Uint8Array(
+                8 + metadataBytes.length + wavBytes.length
+            );
+
+            // AMMEF header
+            combined[0] = 0x41; // A
+            combined[1] = 0x4D; // M
+            combined[2] = 0x4D; // M
+            combined[3] = 0x45; // E
+            combined[4] = 0x46; // F
+
+            // Metadata length
+            const view = new DataView(combined.buffer);
+            view.setUint32(5, metadataBytes.length, true);
+
+            combined.set(metadataBytes, 8);
+            combined.set(wavBytes, 8 + metadataBytes.length);
+
+            const ammefBlob = new Blob(
+                [combined],
+                { type: "application/x-ammef" }
+            );
+
+            const url = URL.createObjectURL(ammefBlob);
             const a = document.createElement('a');
+
             a.href = url;
-            a.download = 'ArNet_ABMTV_Stream.wav';
+            a.download = 'ArNet_Stream.AMMEF';
+
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
-            txtStatus.textContent = "STATUS: Saved file to 'ArNet_ABMTV_Stream.wav'";
+
+            txtStatus.textContent =
+                "STATUS: Saved AMMEF file successfully.";
+
             txtStatus.style.color = '#90EE90';
-        }
-    });
+        };
+
+        reader.readAsArrayBuffer(lastProcessedAudioBlob);
+
+    }
+});
 
     function getCurrentAudioAmplitude() {
         if (isRecording) {
