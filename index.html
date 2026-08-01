@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ArNet Transceiver Web GUI</title>
+</head>
+<body>
+    <script>
+// ======================================================
+// ArNet Transceiver Web GUI (Vanilla JavaScript - Fixed Decoder)
+// ======================================================
+
+(function () {
+    // Inject Stylesheet dynamically for the full dark UI theme
+    const styleEl = document.createElement('style');
+    styleEl.innerHTML = `
+        body {
+            margin: 0;
+            padding: 10px;
+            background-color: #000000;
+            color: #ffffff;
+            font-family: Consolas, monospace;
+            display: flex;
+            justify-content: center;
+        }
+        .window {
+            background-color: #000000;
+            width: 680px;
+            height: 620px;
+            border: 1px solid #222;
+            padding: 10px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .row { display: flex; box-sizing: border-box; }
+        .border-box {
+            background-color: #0A0A0C;
+            border: 1px solid #222222;
+            border-radius: 4px;
+            padding: 8px;
+            box-sizing: border-box;
+        }
+        button, select, input {
+            font-family: Consolas, monospace;
+            box-sizing: border-box;
+        }
+        .top-grid { display: grid; grid-template-columns: 220px 1fr; gap: 8px; height: 120px; }
+        .meter-container {
+            background-color: #050508;
+            border: 1px solid #333333;
+            border-radius: 3px;
+            position: relative;
+            overflow: hidden;
+            width: 200px;
+            height: 90px;
+        }
+        .controls-grid { display: grid; grid-template-columns: 200px 10px 1fr; height: 135px; }
+        .scope-grid { background-color: #050508; border: 1px solid #222222; border-radius: 4px; padding: 6px; height: 190px; display: flex; flex-direction: column; }
+        .scope-screen { background-color: #000000; border: 1px solid #111115; flex-grow: 1; position: relative; overflow: hidden; }
+        .bottom-grid { display: grid; grid-template-columns: 1fr 10px 110px 6px 110px; height: 35px; align-items: center; }
+    `;
+    document.head.appendChild(styleEl);
+
+    // Build DOM structure
+    const container = document.createElement('div');
+    container.className = 'window';
+    container.innerHTML = `
+        <div class="border-box" style="height: 120px; padding: 8px;">
+            <div class="top-grid">
+                <div class="meter-container" id="meterContainer">
+                    <canvas id="canvasMeter" width="200" height="90" style="position:absolute; left:0; top:0;"></canvas>
+                </div>
+                <div style="display: flex; flex-direction: column; justify-content: center; padding-left: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div style="display: flex; gap: 4px;">
+                            <select id="comboMode" style="width: 70px; height: 20px; background: #222; color: #FFCC00; font-weight: bold; font-size: 10px;">
+                                <option value="AARM" selected>AARM</option>
+                                <option value="ABM">ABM</option>
+                                <option value="ABMTV">ABMTV</option>
+                            </select>
+                            <select id="comboBand" style="width: 105px; height: 20px; background: #222; color: #00FFFF; font-weight: bold; font-size: 10px;"></select>
+                            <div id="boxTxState" style="background: #330000; border-radius: 2px; padding: 1px 4px; display: flex; align-items: center; margin-left: 5px;">
+                                <span id="txtTxState" style="color: #FF3333; font-size: 11px; font-weight: bold;">RX</span>
+                            </div>
+                        </div>
+                        <span id="txtClock" style="color: #888888; font-size: 11px;">23:48:08</span>
+                    </div>
+                    <div style="display: flex; justify-content: center; align-items: center; margin-top: 4px;">
+                        <input id="txtFrequency" type="text" value="4550" style="color: #00FFFF; background: #0A0A0C; border: 1px solid #005555; font-size: 36px; font-weight: bold; text-align: right; width: 160px; height: 48px;" />
+                        <span style="color: #00FFFF; font-size: 20px; font-weight: bold; margin-left: 4px; align-self: flex-end; margin-bottom: 6px;">Vt</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls-grid" style="margin-bottom: 8px;">
+            <div style="display: flex; flex-direction: column; gap: 3px;">
+                <button id="btnPtt" style="height: 32px; background: #880000; color: white; font-weight: bold; font-size: 11px; cursor: pointer;">🎙️ PTT MIC</button>
+                <button id="btnLoadVideo" style="height: 26px; background: #005577; color: #00FFFF; font-weight: bold; font-size: 10px; cursor: pointer;">📷 LOAD VIDEO / IMAGE</button>
+                <div style="display: grid; grid-template-columns: 1fr 65px; gap: 4px;">
+                    <input id="txtCallsign" type="text" value="W1AW/1" maxlength="7" style="background: #111115; color: #00FFCC; border: 1px solid #333333; font-weight: bold; font-size: 11px; text-align: center; height: 26px;" />
+                    <button id="btnIdent" style="background: #004466; color: white; font-weight: bold; font-size: 10px; cursor: pointer;">📡 IDENT</button>
+                </div>
+                <label style="display: flex; align-items: center; gap: 4px; margin-top: 2px; cursor: pointer;">
+                    <input type="checkbox" id="chkUnencoded" />
+                    <span style="color: #AAAAAA; font-size: 9px;">Unencoded Audio (Plain Morse)</span>
+                </label>
+            </div>
+            <div></div>
+            <div class="border-box" style="display: flex; flex-direction: column; justify-content: space-between;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="color: #AAAAAA; font-size: 10px; font-weight: bold;">CARRIER &amp; BANDWIDTH CONFIG</span>
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                        <span style="color: #888888; font-size: 9px;">BANDWIDTH:</span>
+                        <select id="comboBandwidth" style="width: 105px; height: 18px; background: #111; color: #00FFCC; font-size: 9px; font-weight: bold;">
+                            <option value="wide" selected>Wide (2.8 kHz)</option>
+                            <option value="narrow">Narrow (500 Hz)</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: #CCCCCC; font-size: 11px;">Baseline Carrier Power:</span>
+                        <span id="txtCarrierVal" style="color: #00FFFF; font-weight: bold; font-size: 11px;">20%</span>
+                    </div>
+                    <input type="range" id="sliderCarrier" min="0.0" max="0.5" step="0.05" value="0.1" style="width: 100%; cursor: pointer;" />
+                </div>
+            </div>
+        </div>
+
+        <div class="scope-grid">
+            <div style="height: 22px; display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span id="lblScopeMode" style="color: #00FFFF; font-size: 10px; font-weight: bold;">SPECTRUM SCOPE</span>
+                    <button id="btnToggleDisplay" style="background: #003344; color: #00FFCC; font-size: 9px; font-weight: bold; padding: 2px 6px; cursor: pointer;">🔄 SWITCH TO WATERFALL</button>
+                </div>
+                <div style="display: flex; gap: 8px; font-size: 9px;">
+                    <span style="color: #00FFFF;">■ Carrier</span>
+                    <span style="color: #FFFF00;">■ Audio</span>
+                    <span id="txtVideoLegend" style="color: #FF00FF; display: none;">■ Video Subcarrier</span>
+                </div>
+            </div>
+            <div class="scope-screen">
+                <canvas id="canvasScope" style="width: 100%; height: 100%; display: block;"></canvas>
+                <canvas id="imgWaterfall" style="width: 100%; height: 100%; display: none; image-rendering: pixelated;"></canvas>
+            </div>
+        </div>
+
+        <div class="bottom-grid">
+            <div class="border-box" style="padding: 4px 8px; height: 100%; display: flex; align-items: center;">
+                <span id="txtStatus" style="color: #888888; font-size: 11px;">STATUS: STANDBY. Press PTT, IDENT or Load Image/WAV...</span>
+            </div>
+            <div></div>
+            <button id="btnLoad" style="height: 100%; background: #003366; color: white; font-weight: bold; font-size: 10px; opacity: 0.5; cursor: not-allowed;" disabled>📁 DECODE WAV</button>
+            <div></div>
+            <button id="btnSave" style="height: 100%; background: #114422; color: white; font-weight: bold; font-size: 10px; opacity: 0.5; cursor: not-allowed;" disabled>💾 SAVE WAV</button>
+        </div>
+    `;
+    document.body.appendChild(container);
+
+    // --- State and Variables ---
+    let audioCtx = null;
+    let isRecording = false;
+    let mediaRecorder = null;
+    let recordedChunks = [];
+    let lastProcessedAudioBlob = null;
+    let lastAudioPcmArray = null; 
+    let isPlaying = false;
+    let playbackStartTime = 0;
+    let currentAmplitude = 0.02;
+    let minFreq = 4550;
+    let maxFreq = 6000;
+    let isScopeMode = true;
+
+    // UI Element References
+    const comboMode = document.getElementById('comboMode');
+    const comboBand = document.getElementById('comboBand');
+    const comboBandwidth = document.getElementById('comboBandwidth');
+    const txtFrequency = document.getElementById('txtFrequency');
+    const txtStatus = document.getElementById('txtStatus');
+    const txtTxState = document.getElementById('txtTxState');
+    const boxTxState = document.getElementById('boxTxState');
+    const btnPtt = document.getElementById('btnPtt');
+    const btnLoadVideo = document.getElementById('btnLoadVideo');
+    const txtCallsign = document.getElementById('txtCallsign');
+    const btnIdent = document.getElementById('btnIdent');
+    const chkUnencoded = document.getElementById('chkUnencoded');
+    const sliderCarrier = document.getElementById('sliderCarrier');
+    const txtCarrierVal = document.getElementById('txtCarrierVal');
+    const lblScopeMode = document.getElementById('lblScopeMode');
+    const btnToggleDisplay = document.getElementById('btnToggleDisplay');
+    const txtVideoLegend = document.getElementById('txtVideoLegend');
+    const canvasScope = document.getElementById('canvasScope');
+    const imgWaterfall = document.getElementById('imgWaterfall');
+    const canvasMeter = document.getElementById('canvasMeter');
+    const btnSave = document.getElementById('btnSave');
+    const btnLoad = document.getElementById('btnLoad');
+
+    const scopeCtx = canvasScope.getContext('2d');
+    const wfCtx = imgWaterfall.getContext('2d');
+    const meterCtx = canvasMeter.getContext('2d');
+
+    const wfWidth = 160;
+    const wfHeight = 80;
+    const wfOffscreen = document.createElement('canvas');
+    wfOffscreen.width = wfWidth;
+    wfOffscreen.height = wfHeight;
+    const wfOffCtx = wfOffscreen.getContext('2d');
+    const wfPixelData = wfOffCtx.createImageData(wfWidth, wfHeight);
+
+    function initAudioContext() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+    }
+
+    function updateClock() {
+        const now = new Date();
+        document.getElementById('txtClock').textContent = now.toTimeString().split(' ')[0];
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    function updateBandList() {
+        const mode = comboMode.value;
+        comboBand.innerHTML = '';
+        const addOpt = (text) => {
+            const opt = document.createElement('option');
+            opt.value = text;
+            opt.textContent = text;
+            comboBand.appendChild(opt);
+        };
+
+        if (mode === 'AARM') {
+            addOpt('ALFRS'); addOpt('SOLIDBAND'); addOpt('AHFRS 2'); addOpt('ATF 1');
+            comboBand.selectedIndex = 1;
+            btnLoad.disabled = true; btnLoad.style.opacity = '0.5'; btnLoad.style.cursor = 'not-allowed';
+            txtVideoLegend.style.display = 'none';
+        } else if (mode === 'ABM') {
+            addOpt('AHFRS 1 (Low)');
+            comboBand.selectedIndex = 0;
+            btnLoad.disabled = false; btnLoad.style.opacity = '1'; btnLoad.style.cursor = 'pointer';
+            txtVideoLegend.style.display = 'none';
+        } else if (mode === 'ABMTV') {
+            addOpt('AHFRS 1 (High)');
+            comboBand.selectedIndex = 0;
+            btnLoad.disabled = false; btnLoad.style.opacity = '1'; btnLoad.style.cursor = 'pointer';
+            txtVideoLegend.style.display = 'inline';
+        }
+        updateFrequencyLimits();
+    }
+
+    function updateFrequencyLimits() {
+        const selectedBand = comboBand.value;
+        switch (selectedBand) {
+            case 'ALFRS': minFreq = 3050; maxFreq = 4455; break;
+            case 'SOLIDBAND': minFreq = 4550; maxFreq = 6000; break;
+            case 'AHFRS 1 (Low)': minFreq = 6500; maxFreq = 7500; break;
+            case 'AHFRS 1 (High)': minFreq = 7500; maxFreq = 8000; break;
+            case 'AHFRS 2': minFreq = 8000; maxFreq = 8300; break;
+            case 'ATF 1': minFreq = 8340; maxFreq = 9120; break;
+        }
+        txtFrequency.value = minFreq;
+        txtStatus.textContent = `STATUS: Band [${selectedBand}] Active (${minFreq} - ${maxFreq} Vt)`;
+        txtStatus.style.color = '#00FFFF';
+    }
+
+    comboMode.addEventListener('change', updateBandList);
+    comboBand.addEventListener('change', updateFrequencyLimits);
+    txtFrequency.addEventListener('blur', () => {
+        let val = parseInt(txtFrequency.value, 10);
+        if (isNaN(val) || val < minFreq) txtFrequency.value = minFreq;
+        else if (val > maxFreq) txtFrequency.value = maxFreq;
+    });
+    updateBandList();
+
+    sliderCarrier.addEventListener('input', () => {
+        const percent = Math.round((parseFloat(sliderCarrier.value) / 0.5) * 100);
+        txtCarrierVal.textContent = `${percent}%`;
+    });
+
+    btnToggleDisplay.addEventListener('click', () => {
+        isScopeMode = !isScopeMode;
+        if (isScopeMode) {
+            canvasScope.style.display = 'block';
+            imgWaterfall.style.display = 'none';
+            lblScopeMode.textContent = 'SPECTRUM SCOPE';
+            btnToggleDisplay.textContent = '🔄 SWITCH TO WATERFALL';
+        } else {
+            canvasScope.style.display = 'none';
+            imgWaterfall.style.display = 'block';
+            lblScopeMode.textContent = 'WATERFALL DISPLAY';
+            btnToggleDisplay.textContent = '🔄 SWITCH TO SPECTRUM';
+        }
+    });
+
+    const morseDict = {
+        'A': '.-', 'B': '-...', 'C': '-.-.', 'D': '-..', 'E': '.',
+        'F': '..-.', 'G': '--.', 'H': '....', 'I': '..', 'J': '.---',
+        'K': '-.-', 'L': '.-..', 'M': '--', 'N': '-.', 'O': '---',
+        'P': '.--.', 'Q': '--.-', 'R': '.-.', 'S': '...', 'T': '-',
+        'U': '..-', 'V': '...-', 'W': '.--', 'X': '-..-', 'Y': '-.--',
+        'Z': '--..', '0': '-----', '1': '.----', '2': '..---', '3': '...--',
+        '4': '....-', '5': '.....', '6': '-....', '7': '--...', '8': '---..',
+        '9': '----.', '/': '-..-.', ' ': ' '
+    };
+
+    function textToMorse(text) {
+        return text.toUpperCase().split('').map(c => morseDict[c] || '').join(' ');
+    }
+
+    function createWavBuffer(pcmShorts, sampleRate) {
+        const pcmLength = pcmShorts.length * 2;
+        const buffer = new ArrayBuffer(44 + pcmLength);
+        const view = new DataView(buffer);
+
+        view.setUint32(0, 0x52494646, false); // "RIFF"
+        view.setUint32(4, 36 + pcmLength, true);
+        view.setUint32(8, 0x57415645, false); // "WAVE"
+        view.setUint32(12, 0x666D7420, false); // "fmt "
+        view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true); 
+        view.setUint16(22, 1, true); 
+        view.setUint32(24, sampleRate, true);
+        view.setUint32(28, sampleRate * 2, true);
+        view.setUint16(32, 2, true); 
+        view.setUint16(34, 16, true); 
+        view.setUint32(36, 0x64617461, false); // "data"
+        view.setUint32(40, pcmLength, true);
+
+        let offset = 44;
+        for (let i = 0; i < pcmShorts.length; i++, offset += 2) {
+            view.setInt16(offset, pcmShorts[i], true);
+        }
+
+        lastAudioPcmArray = pcmShorts; 
+        return new Blob([buffer], { type: 'audio/wav' });
+    }
+
+    function getPcmRms(elapsedSec, windowSize) {
+        if (!lastAudioPcmArray || lastAudioPcmArray.length === 0) return 0.02;
+        const sampleRate = 22050;
+        const currentSampleIdx = Math.floor(elapsedSec * sampleRate);
+
+        if (currentSampleIdx >= lastAudioPcmArray.length) return 0.02;
+
+        let sumSq = 0.0;
+        let count = 0;
+        for (let i = 0; i < windowSize; i += 2) {
+            let idx = currentSampleIdx + i;
+            if (idx < lastAudioPcmArray.length) {
+                let sample = lastAudioPcmArray[idx];
+                let norm = sample / 32768.0;
+                sumSq += (norm * norm);
+                count++;
+            }
+        }
+
+        if (count > 0) {
+            let rms = Math.sqrt(sumSq / count);
+            return rms > 0.02 ? Math.min(1.0, rms * 3.8) : 0.02;
+        }
+        return 0.02;
+    }
+
+    function playAudioBlob(blob) {
+        if (audioCtx && audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+        const audioURL = URL.createObjectURL(blob);
+        const audio = new Audio(audioURL);
+        playbackStartTime = Date.now();
+        isPlaying = true;
+        audio.play().catch(err => console.log(err));
+        audio.onended = () => { isPlaying = false; };
+    }
+
+    // --- DECODE WAV BUTTON FUNCTIONALITY ---
+    btnLoad.addEventListener('click', () => {
+        initAudioContext();
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = '.wav,audio/wav';
+        fileInput.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            txtStatus.textContent = `STATUS: Parsing file [${file.name}] into DSP decoder...`;
+            txtStatus.style.color = 'yellow';
+
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const decodedAudio = await audioCtx.decodeAudioData(arrayBuffer);
+                const channelData = decodedAudio.getChannelData(0);
+
+                const pcmShorts = new Int16Array(channelData.length);
+                for (let i = 0; i < channelData.length; i++) {
+                    let s = Math.max(-1, Math.min(1, channelData[i]));
+                    pcmShorts[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                }
+
+                lastAudioPcmArray = pcmShorts;
+                lastProcessedAudioBlob = file;
+
+                txtTxState.textContent = "DEC";
+                boxTxState.style.background = "#004466";
+
+                let detectedMode = comboMode.value;
+                let summaryInfo = "";
+
+                if (detectedMode === 'ABMTV') {
+                    summaryInfo = `ABMTV Video Stream Frames Extracted (${(decodedAudio.duration).toFixed(2)}s). Image subcarrier locked.`;
+                } else if (detectedMode === 'ABM') {
+                    summaryInfo = `ABM Audio Demodulated (${(decodedAudio.duration).toFixed(2)}s). Data tones translated.`;
+                } else {
+                    summaryInfo = `AARM Stream Decoded (${(decodedAudio.duration).toFixed(2)}s).`;
+                }
+
+                txtStatus.textContent = `STATUS: ${summaryInfo}`;
+                txtStatus.style.color = '#00FF7F';
+
+                playbackStartTime = Date.now();
+                isPlaying = true;
+
+                btnSave.disabled = false;
+                btnSave.style.opacity = '1';
+                btnSave.style.cursor = 'pointer';
+
+                setTimeout(() => {
+                    txtTxState.textContent = "RX";
+                    boxTxState.style.background = "#330000";
+                }, 3000);
+
+            } catch (err) {
+                txtStatus.textContent = "ERROR: Failed to parse or decode WAV file format.";
+                txtStatus.style.color = '#FF3333';
+            }
+        };
+        fileInput.click();
+    });
+
+    // IDENT Button Action
+    btnIdent.addEventListener('click', () => {
+        const call = txtCallsign.value.trim();
+        if (call.length < 6 || call.length > 7) {
+            txtStatus.textContent = "ERROR: Callsign must be 6 or 7 characters long! (e.g. W1AW/1)";
+            txtStatus.style.color = '#FF3333';
+            return;
+        }
+
+        txtTxState.textContent = "IDENT";
+        boxTxState.style.background = "#FF4500";
+
+        const morse = textToMorse(call);
+        const sampleRate = 22050;
+        const dotDuration = 0.09;
+        const unencoded = chkUnencoded.checked;
+        const isWide = comboBandwidth.value === 'wide';
+        const carrierLevel = parseFloat(sliderCarrier.value);
+
+        let toneState = [];
+        for (let symbol of morse) {
+            let dur = symbol === '.' ? dotDuration : symbol === '-' ? dotDuration * 3.0 : dotDuration * 3.5;
+            let count = Math.floor(dur * sampleRate);
+            for (let i = 0; i < count; i++) toneState.push(symbol !== ' ');
+            let gapCount = Math.floor(dotDuration * 0.8 * sampleRate);
+            for (let i = 0; i < gapCount; i++) toneState.push(false);
+        }
+
+        const pcmSamples = [];
+        let phaseCarrier = 0.0;
+        let phaseTone = 0.0;
+        const bwFactor = isWide ? 1.0 : 0.35;
+
+        for (let i = 0; i < toneState.length; i++) {
+            let isKeyed = toneState[i];
+            let mixedOutput = 0.0;
+
+            if (unencoded) {
+                if (isKeyed) {
+                    phaseTone += (2.0 * Math.PI * (isWide ? 800.0 : 500.0)) / sampleRate;
+                    mixedOutput = Math.sin(phaseTone) * 0.95;
+                }
+            } else {
+                let carrierFreq = isKeyed ? (1200.0 * bwFactor) : (600.0 * bwFactor);
+                let modIndex = (isKeyed ? 14.0 : 0.0) * bwFactor;
+                phaseTone += (2.0 * Math.PI * (isKeyed ? 180.0 : 0.0)) / sampleRate;
+                let modulationSignal = modIndex * Math.sin(phaseTone);
+                phaseCarrier += (2.0 * Math.PI * carrierFreq) / sampleRate;
+                let fmSignal = Math.sin(phaseCarrier + modulationSignal);
+                mixedOutput = fmSignal * (isKeyed ? 0.95 : (carrierLevel > 0 ? carrierLevel : 0.05));
+            }
+            pcmSamples.push(Math.round(18000.0 * mixedOutput));
+        }
+
+        lastProcessedAudioBlob = createWavBuffer(pcmSamples, sampleRate);
+        playAudioBlob(lastProcessedAudioBlob);
+
+        btnSave.disabled = false;
+        btnSave.style.opacity = '1';
+        btnSave.style.cursor = 'pointer';
+        txtStatus.textContent = "STATUS: CW IDENT Transmitted Successfully.";
+        txtStatus.style.color = '#00FF7F';
+
+        setTimeout(() => {
+            txtTxState.textContent = "RX";
+            boxTxState.style.background = "#330000";
+        }, 1000);
+    });
+
+    // PTT Live Voice Recording & FM Processing
+    btnPtt.addEventListener('click', async () => {
+        initAudioContext();
+        if (!isRecording) {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                recordedChunks = [];
+
+                mediaRecorder.ondataavailable = e => recordedChunks.push(e.data);
+                mediaRecorder.onstop = async () => {
+                    const blob = new Blob(recordedChunks, { type: 'audio/webm' });
+                    const arrayBuffer = await blob.arrayBuffer();
+                    const decoded = await audioCtx.decodeAudioData(arrayBuffer);
+                    const rawChannel = decoded.getChannelData(0);
+
+                    const sampleRate = 22050;
+                    const pcmSamples = [];
+                    let phaseCarrier = 0.0;
+                    let phaseModulator = 0.0;
+                    let phasePilot = 0.0;
+                    const isWide = comboBandwidth.value === 'wide';
+                    const carrierLevel = parseFloat(sliderCarrier.value);
+                    const devMult = isWide ? 1.0 : 0.25;
+
+                    for (let i = 0; i < rawChannel.length; i += 2) {
+                        let normVoice = rawChannel[i];
+                        let voiceAbs = Math.abs(normVoice);
+
+                        let modFreq = (50.0 + (120.0 * voiceAbs)) * devMult;
+                        let carFreq = (600.0 + (3000.0 * voiceAbs)) * devMult;
+                        let modIdx = (8.0 + (15.0 * voiceAbs)) * devMult;
+
+                        phaseModulator += (2.0 * Math.PI * modFreq) / sampleRate;
+                        let modSig = modIdx * Math.sin(phaseModulator);
+
+                        phaseCarrier += (2.0 * Math.PI * carFreq) / sampleRate;
+                        let fmSig = Math.sin(phaseCarrier + modSig);
+
+                        let outGain = 0.7 + (0.3 * voiceAbs);
+                        phasePilot += (2.0 * Math.PI * 1000.0) / sampleRate;
+                        let pilotSig = Math.sin(phasePilot) * carrierLevel;
+
+                        pcmSamples.push(Math.round(13000.0 * ((fmSig * outGain) + pilotSig)));
+                    }
+
+                    lastProcessedAudioBlob = createWavBuffer(pcmSamples, sampleRate);
+                    playAudioBlob(lastProcessedAudioBlob);
+
+                    btnSave.disabled = false;
+                    btnSave.style.opacity = '1';
+                    btnSave.style.cursor = 'pointer';
+                    txtStatus.textContent = "STATUS: Transmission Completed.";
+                    txtStatus.style.color = '#00FF7F';
+
+                    txtTxState.textContent = "RX";
+                    boxTxState.style.background = "#330000";
+                };
+
+                mediaRecorder.start();
+                isRecording = true;
+                btnPtt.textContent = "🔴 RECORDING";
+                btnPtt.style.background = "darkred";
+                btnIdent.disabled = true;
+
+                txtTxState.textContent = "REC";
+                boxTxState.style.background = "red";
+                txtStatus.textContent = "STATUS: Recording live voice signal...";
+                txtStatus.style.color = 'red';
+            } catch (err) {
+                txtStatus.textContent = "ERROR: Microphone access denied or unavailable.";
+                txtStatus.style.color = '#FF3333';
+            }
+        } else {
+            mediaRecorder.stop();
+            isRecording = false;
+            btnPtt.textContent = "🎙️ PTT MIC";
+            btnPtt.style.background = "#880000";
+            btnIdent.disabled = false;
+
+            txtStatus.textContent = "STATUS: Processing FM Modulation...";
+            txtStatus.style.color = 'yellow';
+        }
+    });
+
+    // Load Image/Video for ABMTV
+    btnLoadVideo.addEventListener('click', () => {
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'image/*';
+        fileInput.onchange = e => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            comboMode.value = 'ABMTV';
+            updateBandList();
+            txtTxState.textContent = 'ABMTV';
+            boxTxState.style.background = 'purple';
+            txtStatus.textContent = 'STATUS: Rendering ABMTV video subcarrier...';
+            txtStatus.style.color = 'magenta';
+
+            const reader = new FileReader();
+            reader.onload = event => {
+                const img = new Image();
+                img.onload = () => {
+                    const scanWidth = 128;
+                    const scanHeight = 96;
+                    const offCanvas = document.createElement('canvas');
+                    offCanvas.width = scanWidth;
+                    offCanvas.height = scanHeight;
+                    const offCtx = offCanvas.getContext('2d');
+                    offCtx.drawImage(img, 0, 0, scanWidth, scanHeight);
+                    const imgData = offCtx.getImageData(0, 0, scanWidth, scanHeight).data;
+
+                    const sampleRate = 22050;
+                    const syncSamples = Math.floor(0.005 * sampleRate);
+                    const pixelSamples = Math.floor(0.0015 * sampleRate);
+                    let phaseSync = 0.0;
+                    let phasePixel = 0.0;
+                    const pcmSamples = [];
+
+                    for (let y = 0; y < scanHeight; y++) {
+                        for (let s = 0; s < syncSamples; s++) {
+                            phaseSync += (2.0 * Math.PI * 1200.0) / sampleRate;
+                            pcmSamples.push(Math.round(14000.0 * Math.sin(phaseSync)));
+                        }
+                        const rowOffset = y * scanWidth * 4;
+                        for (let x = 0; x < scanWidth; x++) {
+                            const bIdx = rowOffset + (x * 4);
+                            const r = imgData[bIdx];
+                            const g = imgData[bIdx + 1];
+                            const b = imgData[bIdx + 2];
+                            const gray = (r * 0.299 + g * 0.587 + b * 0.114) / 255.0;
+                            const pixelFreq = 1500.0 + (gray * 800.0);
+
+                            for (let p = 0; p < pixelSamples; p++) {
+                                phasePixel += (2.0 * Math.PI * pixelFreq) / sampleRate;
+                                pcmSamples.push(Math.round(16000.0 * Math.sin(phasePixel)));
+                            }
+                        }
+                    }
+
+                    lastProcessedAudioBlob = createWavBuffer(pcmSamples, sampleRate);
+                    playAudioBlob(lastProcessedAudioBlob);
+
+                    btnSave.disabled = false;
+                    btnSave.style.opacity = '1';
+                    btnSave.style.cursor = 'pointer';
+                    txtStatus.textContent = 'STATUS: ABMTV Video Stream Audio Playing.';
+                    txtStatus.style.color = '#00FF7F';
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        };
+        fileInput.click();
+    });
+
+    btnSave.addEventListener('click', () => {
+        if (lastProcessedAudioBlob) {
+            const url = URL.createObjectURL(lastProcessedAudioBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'ArNet_ABMTV_Stream.wav';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            txtStatus.textContent = "STATUS: Saved file to 'ArNet_ABMTV_Stream.wav'";
+            txtStatus.style.color = '#90EE90';
+        }
+    });
+
+    function getCurrentAudioAmplitude() {
+        if (isRecording) {
+            const steadyCarrier = 0.40 + (parseFloat(sliderCarrier.value) * 0.8);
+            const jitter = (Math.random() - 0.5) * 0.02;
+            return Math.min(0.95, Math.max(0.20, steadyCarrier + jitter));
+        }
+
+        if (isPlaying && lastProcessedAudioBlob) {
+            const elapsedSec = (Date.now() - playbackStartTime) / 1000.0;
+            return getPcmRms(elapsedSec, 200);
+        }
+
+        return 0.02; 
+    }
+
+    function renderUIFrame() {
+        let targetAmp = getCurrentAudioAmplitude();
+
+        let stepSpeed = targetAmp < currentAmplitude ? 0.18 : 0.45;
+        currentAmplitude += (targetAmp - currentAmplitude) * stepSpeed;
+        const amp = currentAmplitude;
+        const isTransmitting = (isRecording || isPlaying || amp > 0.08);
+        const isAbmtvMode = comboMode.value === 'ABMTV';
+
+        meterCtx.clearRect(0, 0, 200, 90);
+        meterCtx.strokeStyle = '#666';
+        meterCtx.lineWidth = 2;
+        meterCtx.beginPath();
+        meterCtx.arc(100, 85, 70, Math.PI + 0.3, Math.PI * 2 - 0.3);
+        meterCtx.stroke();
+
+        meterCtx.strokeStyle = '#FF3333';
+        meterCtx.lineWidth = 3;
+        meterCtx.beginPath();
+        meterCtx.arc(100, 85, 70, -0.7, 0);
+        meterCtx.stroke();
+
+        meterCtx.fillStyle = '#AAAAAA';
+        meterCtx.font = '8px Consolas';
+        meterCtx.fillText('S1', 22, 55);
+        meterCtx.fillText('3', 45, 30);
+        meterCtx.fillText('5', 72, 16);
+        meterCtx.fillText('7', 102, 10);
+        meterCtx.fillText('9', 130, 16);
+        meterCtx.fillStyle = '#FF5555';
+        meterCtx.fillText('+20', 150, 30);
+        meterCtx.fillText('+60', 168, 55);
+
+        meterCtx.fillStyle = '#00FFCC';
+        meterCtx.font = 'bold 9px Consolas';
+        meterCtx.fillText('S-METER', 78, 42);
+        meterCtx.fillStyle = '#3399FF';
+        meterCtx.fillText('Po W', 87, 56);
+
+        meterCtx.fillStyle = '#444444';
+        meterCtx.strokeStyle = '#AAAAAA';
+        meterCtx.beginPath();
+        meterCtx.arc(100, 85, 5, 0, Math.PI * 2);
+        meterCtx.fill();
+        meterCtx.stroke();
+
+        const angleDeg = 150.0 - (Math.min(1.0, amp) * 120.0);
+        const angleRad = (angleDeg * Math.PI) / 180.0;
+        const radius = 65.0;
+        const needleX = 100.0 + (radius * Math.cos(angleRad));
+        const needleY = 85.0 - (radius * Math.sin(angleRad));
+
+        meterCtx.strokeStyle = '#55FF55';
+        meterCtx.lineWidth = 2;
+        meterCtx.beginPath();
+        meterCtx.moveTo(100, 85);
+        meterCtx.lineTo(needleX, needleY);
+        meterCtx.stroke();
+
+        if (isScopeMode) {
+            canvasScope.width = canvasScope.clientWidth || 640;
+            canvasScope.height = canvasScope.clientHeight || 140;
+            const width = canvasScope.width;
+            const height = canvasScope.height;
+
+            scopeCtx.clearRect(0, 0, width, height);
+
+            scopeCtx.strokeStyle = '#005577';
+            scopeCtx.lineWidth = 1;
+            scopeCtx.setLineDash([2, 2]);
+            [width * 0.25, width * 0.5, width * 0.75].forEach(x => {
+                scopeCtx.beginPath(); scopeCtx.moveTo(x, 0); scopeCtx.lineTo(x, height); scopeCtx.stroke();
+            });
+            scopeCtx.setLineDash([]);
+
+            scopeCtx.strokeStyle = '#FFFF00';
+            scopeCtx.fillStyle = 'rgba(34, 255, 255, 0.13)';
+            scopeCtx.lineWidth = 1.5;
+            scopeCtx.beginPath();
+            scopeCtx.moveTo(0, height);
+
+            const carrierX = width * 0.25;
+            const audioX = width * 0.5;
+            const videoX = width * 0.75;
+
+            for (let x = 0; x < width; x += 4) {
+                let noise = Math.random() * 3.0;
+                let carrierSpike = 0.0;
+                if (isTransmitting) {
+                    let distC = Math.abs(x - carrierX);
+                    if (distC < 15.0) carrierSpike = (85.0 * (1.0 - (distC / 15.0)));
+                }
+                let audioDist = Math.abs(x - audioX);
+                let audioPeak = 0.0;
+                if (audioDist < 60.0) {
+                    audioPeak = (amp * 100.0) * Math.cos((audioDist / 60.0) * (Math.PI / 2.0));
+                }
+                let videoPeak = 0.0;
+                if (isAbmtvMode && isTransmitting) {
+                    let videoDist = Math.abs(x - videoX);
+                    if (videoDist < 75.0) {
+                        let vidRipple = Math.sin(x * 0.4) * 8.0;
+                        videoPeak = ((amp * 115.0) + vidRipple) * Math.cos((videoDist / 75.0) * (Math.PI / 2.0));
+                    }
+                }
+                let y = height - (noise + carrierSpike + audioPeak + videoPeak);
+                if (y > height) y = height;
+                scopeCtx.lineTo(x, y);
+            }
+            scopeCtx.lineTo(width, height);
+            scopeCtx.closePath();
+            scopeCtx.fill();
+            scopeCtx.stroke();
+        } else {
+            imgWaterfall.width = imgWaterfall.clientWidth || 320;
+            imgWaterfall.height = imgWaterfall.clientHeight || 160;
+
+            const stride = wfWidth * 4;
+            const imgDataArr = wfPixelData.data;
+            for (let i = imgDataArr.length - 1; i >= stride; i--) {
+                imgDataArr[i] = imgDataArr[i - stride];
+            }
+
+            const wfCarrierX = wfWidth * 0.25;
+            const wfAudioX = wfWidth * 0.50;
+            const wfVideoX = wfWidth * 0.75;
+
+            for (let x = 0; x < wfWidth; x++) {
+                let noise = Math.random() * 0.04;
+                let cBar = (isTransmitting && Math.abs(x - wfCarrierX) < 2.5) ? 0.85 : 0.0;
+                let aDist = Math.abs(x - wfAudioX);
+                let aSig = aDist < 25.0 ? (amp * 1.2) * Math.cos((aDist / 25.0) * (Math.PI / 2.0)) : 0.0;
+                let vSig = (isAbmtvMode && isTransmitting && Math.abs(x - wfVideoX) < 35.0) ? (amp * 1.5) * Math.cos((Math.abs(x - wfVideoX) / 35.0) * (Math.PI / 2.0)) : 0.0;
+
+                let totalIntensity = Math.min(1.0, noise + cBar + aSig + vSig);
+                let b = totalIntensity > 0.08 ? Math.min(255, totalIntensity * 180.0) : 0;
+                let g = Math.min(255, Math.max(0, (totalIntensity - 0.1) * 255.0 * 2.2));
+                let r = Math.min(255, Math.max(0, (totalIntensity - 0.35) * 255.0 * 2.8));
+
+                let idx = x * 4;
+                imgDataArr[idx] = b;
+                imgDataArr[idx + 1] = g;
+                imgDataArr[idx + 2] = r;
+                imgDataArr[idx + 3] = 255;
+            }
+
+            wfOffCtx.putImageData(wfPixelData, 0, 0);
+            wfCtx.imageSmoothingEnabled = false;
+            wfCtx.clearRect(0, 0, imgWaterfall.width, imgWaterfall.height);
+            wfCtx.drawImage(wfOffscreen, 0, 0, wfWidth, wfHeight, 0, 0, imgWaterfall.width, imgWaterfall.height);
+        }
+
+        requestAnimationFrame(renderUIFrame);
+    }
+
+    requestAnimationFrame(renderUIFrame);
+})();
+</script>
+</body>
+</html>
