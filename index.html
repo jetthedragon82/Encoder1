@@ -157,12 +157,15 @@
             <button id="btnLoad" style="height: 100%; background: #003366; color: white; font-weight: bold; font-size: 10px; opacity: 0.5; cursor: not-allowed;" disabled>📁 DECODE WAV</button>
             <div></div>
 
-            <button id="btnSave" style="height: 100%; background: #114422; color: white; font-weight: bold; font-size: 10px; opacity: 0.5; cursor: not-allowed;" disabled>💾 SAVE .AMMEF</button>
+ <div style="display:flex; gap:4px; height:100%;">
+    <button id="btnSave" style="flex:1; background:#114422; color:white; font-weight:bold; font-size:10px; opacity:0.5; cursor:not-allowed;" disabled>
+        💾 SAVE .AMMEF
+    </button>
 
-<button id="btnLoadAMMEF" style="height: 100%; background: #224466; color: white; font-weight: bold; font-size: 10px;">
-📂 LOAD AMMEF
-</button>
-        </div>
+    <button id="btnLoadAMMEF" style="flex:1; background:#224466; color:white; font-weight:bold; font-size:10px;">
+        📂 LOAD AMMEF
+    </button>
+</div>
     `;
     document.body.appendChild(container);
 
