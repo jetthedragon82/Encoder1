@@ -428,7 +428,9 @@ let isPlaying = false;
                 txtStatus.style.color = '#00FF7F';
 
                 playbackStartTime = Date.now();
-                isPlaying = true;
+                isPlaying = true; 
+                 
+playAudioBlob(lastProcessedAudioBlob);
 
                 btnSave.disabled = false;
                 btnSave.style.opacity = '1';
