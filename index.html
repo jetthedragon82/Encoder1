@@ -246,6 +246,7 @@ let isPlaying = false;
             comboBand.appendChild(opt);
         };
 
+
         if (mode === 'AARM') {
             addOpt('ALFRS'); addOpt('SOLIDBAND'); addOpt('AHFRS 2'); addOpt('ATF 1');
             comboBand.selectedIndex = 1;
@@ -287,6 +288,26 @@ let isPlaying = false;
         if (isNaN(val) || val < minFreq) txtFrequency.value = minFreq;
         else if (val > maxFreq) txtFrequency.value = maxFreq;
     });
+
+btnLoadAMMEF.addEventListener('click', () => {
+
+    const fileInput = document.createElement('input');
+
+    fileInput.type = 'file';
+    fileInput.accept = '.AMMEF';
+
+    fileInput.onchange = e => {
+        const file = e.target.files[0];
+
+        if (!file) return;
+
+        loadAMMEF(file);
+    };
+
+    fileInput.click();
+
+});
+
     updateBandList();
 
     sliderCarrier.addEventListener('input', () => {
