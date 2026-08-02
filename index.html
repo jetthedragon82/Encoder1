@@ -371,17 +371,26 @@ let isPlaying = false;
         return 0.02;
     }
 
-    function playAudioBlob(blob) {
-        if (audioCtx && audioCtx.state === 'suspended') {
-            audioCtx.resume();
-        }
-        const audioURL = URL.createObjectURL(blob);
-        const audio = new Audio(audioURL);
-        playbackStartTime = Date.now();
-        isPlaying = true;
-        audio.play().catch(err => console.log(err));
-        audio.onended = () => { isPlaying = false; };
+async function playAudioBlob(blob) {
+    if (audioCtx && audioCtx.state === 'suspended') {
+        await audioCtx.resume();
     }
+
+    const audioURL = URL.createObjectURL(blob);
+    const audio = new Audio(audioURL);
+
+    playbackStartTime = Date.now();
+    isPlaying = true;
+
+    audio.volume = 1.0;
+
+    await audio.play().catch(err => console.log("Audio play error:", err));
+
+    audio.onended = () => {
+        isPlaying = false;
+        URL.revokeObjectURL(audioURL);
+    };
+}
 
     // --- DECODE WAV BUTTON FUNCTIONALITY ---
     btnLoad.addEventListener('click', () => {
