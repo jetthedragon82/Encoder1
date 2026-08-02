@@ -408,7 +408,7 @@ let isPlaying = false;
                 }
 
                 lastAudioPcmArray = pcmShorts;
-                lastProcessedAudioBlob = file;
+                lastProcessedAudioBlob = new Blob([file], { type: "audio/wav" });
 
                 txtTxState.textContent = "DEC";
                 boxTxState.style.background = "#004466";
