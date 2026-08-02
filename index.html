@@ -415,6 +415,7 @@ async function loadAMMEF(file) {
         const data = new Uint8Array(buffer);
 
         console.log(
+            "AMMEF Header:",
             String.fromCharCode(
                 data[0],
                 data[1],
@@ -437,8 +438,10 @@ async function loadAMMEF(file) {
 
         const view = new DataView(buffer);
 
+        // Read metadata length
         const metadataLength = view.getUint32(5, true);
 
+        // Extract metadata
         const metadataBytes = data.slice(
             8,
             8 + metadataLength
@@ -457,25 +460,29 @@ async function loadAMMEF(file) {
 
         const wavBlob = new Blob(
             [wavData],
-            {type:"audio/wav"}
+            { type: "audio/wav" }
         );
 
         lastProcessedAudioBlob = wavBlob;
 
+        if (metadata.mode) {
+            comboMode.value = metadata.mode;
+        }
+
         txtStatus.textContent =
-            `STATUS: Loaded AMMEF ${metadata.mode}`;
+            `STATUS: Loaded AMMEF ${metadata.mode || ""}`;
 
         txtStatus.style.color = "#00FF7F";
 
         playAudioBlob(wavBlob);
 
-    } catch(err) {
-        console.log(err);
+    } catch (err) {
+        console.error("AMMEF Load Error:", err);
 
         txtStatus.textContent =
             "ERROR: Invalid AMMEF file";
 
-        txtStatus.style.color="#FF3333";
+        txtStatus.style.color = "#FF3333";
     }
 }
 
