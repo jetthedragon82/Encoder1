@@ -410,18 +410,19 @@ console.log("Loading AMMEF:", file.name, file.size);
     }
 
 async function loadAMMEF(file) {
-console.log(
-    String.fromCharCode(
-        data[0],
-        data[1],
-        data[2],
-        data[3],
-        data[4]
-    )
-);
     try {
         const buffer = await file.arrayBuffer();
         const data = new Uint8Array(buffer);
+
+        console.log(
+            String.fromCharCode(
+                data[0],
+                data[1],
+                data[2],
+                data[3],
+                data[4]
+            )
+        );
 
         // Check AMMEF header
         if (
