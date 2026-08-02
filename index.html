@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+I'm<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -149,22 +149,28 @@
             </div>
         </div>
 
-        <div class="bottom-grid">
-            <div class="border-box" style="padding: 4px 8px; height: 100%; display: flex; align-items: center;">
-                <span id="txtStatus" style="color: #888888; font-size: 11px;">STATUS: STANDBY. Press PTT, IDENT or Load Image/WAV...</span>
-            </div>
-            <div></div>
-            <button id="btnLoad" style="height: 100%; background: #003366; color: white; font-weight: bold; font-size: 10px; opacity: 0.5; cursor: not-allowed;" disabled>📁 DECODE WAV</button>
-            <div></div>
+ <div class="bottom-grid">
 
- <div style="display:flex; gap:4px; height:100%;">
-    <button id="btnSave" style="flex:1; background:#114422; color:white; font-weight:bold; font-size:10px; opacity:0.5; cursor:not-allowed;" disabled>
-        💾 SAVE .AMMEF
-    </button>
+    <div style="display:flex; gap:4px; height:100%;">
+        <button id="btnLoad" style="height:100%; background:#003366; color:white; font-weight:bold; font-size:10px;" disabled>
+            📁 DECODE WAV
+        </button>
 
-    <button id="btnLoadAMMEF" style="flex:1; background:#224466; color:white; font-weight:bold; font-size:10px;">
-        📂 LOAD AMMEF
-    </button>
+        <button id="btnLoadAMMEF" style="height:100%; background:#224466; color:white; font-weight:bold; font-size:10px;">
+            📂 LOAD AMMEF
+        </button>
+
+        <button id="btnSave" style="height:100%; background:#114422; color:white; font-weight:bold; font-size:10px;" disabled>
+            💾 SAVE .AMMEF
+        </button>
+    </div>
+
+    <div class="border-box" style="padding:4px 8px; height:100%; display:flex; align-items:center;">
+        <span id="txtStatus" style="color:#888888; font-size:11px;">
+            STATUS: STANDBY...
+        </span>
+    
+
 </div>
     `;
     document.body.appendChild(container);
