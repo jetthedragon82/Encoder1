@@ -371,6 +371,66 @@ let isPlaying = false;
         return 0.02;
     }
 
+async function loadAMMEF(file) {
+    try {
+        const buffer = await file.arrayBuffer();
+        const data = new Uint8Array(buffer);
+
+        // Check AMMEF header
+        if (
+            data[0] !== 0x41 ||
+            data[1] !== 0x4D ||
+            data[2] !== 0x4D ||
+            data[3] !== 0x45 ||
+            data[4] !== 0x46
+        ) {
+            throw new Error("Invalid AMMEF file");
+        }
+
+        const view = new DataView(buffer);
+
+        const metadataLength = view.getUint32(5, true);
+
+        const metadataBytes = data.slice(
+            8,
+            8 + metadataLength
+        );
+
+        const metadata = JSON.parse(
+            new TextDecoder().decode(metadataBytes)
+        );
+
+        console.log("AMMEF Metadata:", metadata);
+
+        // Extract embedded WAV
+        const wavData = data.slice(
+            8 + metadataLength
+        );
+
+        const wavBlob = new Blob(
+            [wavData],
+            {type:"audio/wav"}
+        );
+
+        lastProcessedAudioBlob = wavBlob;
+
+        txtStatus.textContent =
+            `STATUS: Loaded AMMEF ${metadata.mode}`;
+
+        txtStatus.style.color = "#00FF7F";
+
+        playAudioBlob(wavBlob);
+
+    } catch(err) {
+        console.log(err);
+
+        txtStatus.textContent =
+            "ERROR: Invalid AMMEF file";
+
+        txtStatus.style.color="#FF3333";
+    }
+}
+
 async function playAudioBlob(blob) {
     if (audioCtx && audioCtx.state === 'suspended') {
         await audioCtx.resume();
@@ -399,7 +459,10 @@ isPlaying = true;
         fileInput.onchange = async (e) => {
             const file = e.target.files[0];
             if (!file) return;
-
+if (file.name.toLowerCase().endsWith(".ammef")) {
+    loadAMMEF(file);
+    return;
+}
             txtStatus.textContent = `STATUS: Parsing file [${file.name}] into DSP decoder...`;
             txtStatus.style.color = 'yellow';
 
