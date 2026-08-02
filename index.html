@@ -444,9 +444,9 @@ async function loadAMMEF(file) {
 
         // Extract metadata
         const metadataBytes = data.slice(
-            8,
-            8 + metadataLength
-        );
+    9,
+    9 + metadataLength
+);
 
         const metadata = JSON.parse(
             new TextDecoder().decode(metadataBytes)
@@ -456,7 +456,7 @@ async function loadAMMEF(file) {
 
         // Extract embedded WAV
         const wavData = data.slice(
-            8 + metadataLength
+            9 + metadataLength
         );
 
         const wavBlob = new Blob(
@@ -820,8 +820,8 @@ playAudioBlob(lastProcessedAudioBlob);
             const metadataBytes = new TextEncoder().encode(JSON.stringify(metadata));
 
             const combined = new Uint8Array(
-                8 + metadataBytes.length + wavBytes.length
-            );
+    9 + metadataBytes.length + wavBytes.length
+);       
 
             // AMMEF header
             combined[0] = 0x41; // A
@@ -834,8 +834,8 @@ playAudioBlob(lastProcessedAudioBlob);
             const view = new DataView(combined.buffer);
             view.setUint32(5, metadataBytes.length, true);
 
-            combined.set(metadataBytes, 8);
-            combined.set(wavBytes, 8 + metadataBytes.length);
+            combined.set(metadataBytes, 9);
+combined.set(wavBytes, 9 + metadataBytes.length);
 
             const ammefBlob = new Blob(
                 [combined],
