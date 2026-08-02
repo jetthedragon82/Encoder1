@@ -379,12 +379,10 @@ async function playAudioBlob(blob) {
     const audioURL = URL.createObjectURL(blob);
     const audio = new Audio(audioURL);
 
-    playbackStartTime = Date.now();
-    isPlaying = true;
-
-    audio.volume = 1.0;
-
     await audio.play().catch(err => console.log("Audio play error:", err));
+
+playbackStartTime = Date.now();
+isPlaying = true;
 
     audio.onended = () => {
         isPlaying = false;
