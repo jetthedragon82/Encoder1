@@ -309,6 +309,8 @@ btnLoadAMMEF.addEventListener('click', () => {
 
         if (!file) return;
 
+console.log("Loading AMMEF:", file.name, file.size);
+
         loadAMMEF(file);
     };
 
